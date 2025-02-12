@@ -1,0 +1,19 @@
+name: 'Configure AWS credentials'
+description: 'Configures AWS credentials for use in GitHub Actions'
+inputs:
+  aws-role-to-assume:
+    description: 'AWS role to assume'
+    required: true
+  aws-region:
+    description: 'AWS Region'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        role-to-assume: ${{ inputs.aws-role-to-assume }}
+        aws-region: ${{ inputs.aws-region }}
+
+

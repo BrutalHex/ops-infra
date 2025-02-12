@@ -1,0 +1,63 @@
+# this workflow apllies the changes against AWS and Cluster.
+---
+name: destroy-cluster
+on:
+  workflow_call:
+    secrets:
+      AWS_ROLE_TO_ASSUME:
+        required: true
+      EXTRA_EKS_ADMIN_ACCESS_PRINCIPAL_ARNS:
+        required: true
+      CLOUD_FLARE_API_TOKEN:
+        required: true
+  workflow_dispatch: {}
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Generate matrix
+        id: set-matrix
+        run: |
+          # Convert REGIONS from comma-separated to JSON array
+          REGIONS=$(echo '${{ vars.REGIONS }}' | sed 's/,/","/g')
+          echo "matrix=[\"${REGIONS}\"]" >> $GITHUB_OUTPUT
+  destroy:
+    needs: generate-matrix
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      matrix:
+        region: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: ./.github/workflows/actions/configure-aws-credentials
+        with:
+          aws-role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ matrix.region }}
+      - name: Set Terraform Environment Variables
+        uses: ./.github/workflows/actions/set-terraform-environment-variables
+        with:
+          aws-region: ${{ matrix.region }}
+          aws-route53-domain: ${{ vars.AWS_ROUTE53_DOMAIN }}
+          aws-role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          extra-eks-admin-access-principal-arns: ${{ secrets.EXTRA_EKS_ADMIN_ACCESS_PRINCIPAL_ARNS }}
+          cloud-flare-api-token: ${{ secrets.CLOUD_FLARE_API_TOKEN }}
+          domain: ${{ vars.DOMAIN }}
+          sub-domain: ${{ vars.SUB_DOMAIN }}
+          cloudflare-zone-id: ${{ vars.CLOUDFLARE_ZONE_ID }}
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: '1.8.2'
+      - name: destroy cluster
+        run: |
+          set -e
+          terraform -chdir=./infra init -upgrade
+          terraform -chdir=./infra destroy -auto-approve
+        continue-on-error: false

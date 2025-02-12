@@ -1,0 +1,90 @@
+# this workflow apllies the changes against AWS and Cluster.
+---
+name: cluster-setup
+on:
+  workflow_call:
+    secrets:
+      AWS_ROLE_TO_ASSUME:
+        required: true
+      EXTRA_EKS_ADMIN_ACCESS_PRINCIPAL_ARNS:
+        required: true
+      ACCESS_OPS_KUBERNETES_BASE:
+        required: true
+      CLOUD_FLARE_API_TOKEN:
+        required: true
+  workflow_dispatch: {}
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Generate matrix
+        id: set-matrix
+        run: |
+          # Convert REGIONS from comma-separated to JSON array
+          REGIONS=$(echo '${{ vars.REGIONS }}' | sed 's/,/","/g')
+          echo "matrix=[\"${REGIONS}\"]" >> $GITHUB_OUTPUT
+  deploy:
+    needs: generate-matrix
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      matrix:
+        region: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: ./.github/workflows/actions/configure-aws-credentials
+        with:
+          aws-role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ matrix.region }}
+      - name: Set Terraform Environment Variables
+        uses: ./.github/workflows/actions/set-terraform-environment-variables
+        with:
+          aws-region: ${{ matrix.region }}
+          aws-route53-domain: ${{ vars.AWS_ROUTE53_DOMAIN }}
+          aws-role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          extra-eks-admin-access-principal-arns: ${{ secrets.EXTRA_EKS_ADMIN_ACCESS_PRINCIPAL_ARNS }}
+          cloud-flare-api-token: ${{ secrets.CLOUD_FLARE_API_TOKEN }}
+          domain: ${{ vars.DOMAIN }}
+          sub-domain: ${{ vars.SUB_DOMAIN }}
+          cloudflare-zone-id: ${{ vars.CLOUDFLARE_ZONE_ID }}
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: '1.8.2'
+          terraform_wrapper: false
+      - name: validate the changes
+        run: |
+          set -e
+          make check
+        continue-on-error: false
+      - name: plan chnages
+        run: |
+          set -e
+          make plan
+        continue-on-error: false
+      - name: apply chnages
+        run: |
+          set -e
+          make apply
+        continue-on-error: false
+      - name: Set Variable Name and Value
+        run: |
+          echo "VARIABLE_NAME=EKS_CLUSTER_SECRET_ID" >> $GITHUB_ENV
+          echo "VARIABLE_VALUE=$(terraform -chdir=./infra output -raw cluster_information_secret)" >> $GITHUB_ENV
+
+      - name: Set Repository Variable via GitHub API
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACCESS_OPS_KUBERNETES_BASE }}
+        run: |
+          curl -X PATCH \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -d '{"name":"${{ env.VARIABLE_NAME }}","value":"${{ env.VARIABLE_VALUE }}"}' \
+            "https://api.github.com/repos/BrutalHex/ops-kubernetes-base/actions/variables/${{ env.VARIABLE_NAME }}"

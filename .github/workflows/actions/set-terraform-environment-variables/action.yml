@@ -1,0 +1,42 @@
+name: 'Set Terraform Environment Variables'
+description: 'Sets Terraform environment variables for use in GitHub Actions'
+inputs:
+  aws-region:
+    description: 'AWS Region'
+    required: true
+  aws-route53-domain:
+    description: 'AWS Route53 Domain'
+    required: true
+  aws-role-to-assume:
+    description: 'AWS role to assume'
+    required: true
+  extra-eks-admin-access-principal-arns:
+    description: 'Extra EKS Admin Access Principal ARNs'
+    required: true
+  cloud-flare-api-token:
+    description: 'Cloudflare API Token'
+    required: true
+  domain:
+    description: 'the domain for managing DNS records, ex: example.com'
+    required: true
+  sub-domain:
+    description: 'the sub domain to use as parent domain of applications, ex: app'
+    required: true
+  cloudflare-zone-id:
+    description: 'Cloudflare zone id'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Set Terraform Environment Variables
+      run: |
+        ADMIN_ARNS=$(echo '${{ inputs.extra-eks-admin-access-principal-arns }}' | sed 's/,/","/g')
+        echo "TF_VAR_EXTRA_EKS_ADMIN_ACCESS_PRINCIPAL_ARNS=[\"${ADMIN_ARNS}\"]" >> $GITHUB_ENV
+        echo "TF_VAR_AWS_REGION=${{ inputs.aws-region }}" >> $GITHUB_ENV
+        echo "TF_VAR_AWS_ROUTE53_DOMAIN=${{ inputs.aws-route53-domain }}" >> $GITHUB_ENV
+        echo "TF_VAR_GITHUB_OIDC_ROLE_ARN=${{ inputs.aws-role-to-assume }}" >> $GITHUB_ENV
+        echo "TF_VAR_CLOUD_FLARE_API_TOKEN=${{ inputs.cloud-flare-api-token }}" >> $GITHUB_ENV
+        echo "TF_VAR_DOMAIN=${{ inputs.domain }}" >> $GITHUB_ENV
+        echo "TF_VAR_SUB_DOMAIN=${{ inputs.sub-domain }}" >> $GITHUB_ENV
+        echo "TF_VAR_CLOUDFLARE_ZONE_ID=${{ inputs.cloudflare-zone-id }}" >> $GITHUB_ENV
+      shell: bash
