@@ -16,7 +16,7 @@ Sets up essential workloads in **EKS**, including **ArgoCD**, **Cert-Manager**, 
 Hosts **YAML definitions** that describe Kubernetes workloads in the form of **ArgoCD Applications**.  
 
 ## 4. [ops-vectordb](https://github.com/BrutalHex/ops-vectordb)  
-A sample vector databse packaged as a **[Helm Chart](https://brutalhex.github.io/ops-vectordb/)**.  
+A sample vector database packaged as a **[Helm Chart](https://brutalhex.github.io/ops-vectordb/)**.  
 
 
 ## Prerequisites
@@ -30,7 +30,7 @@ A sample vector databse packaged as a **[Helm Chart](https://brutalhex.github.io
   - Route 53 (DNS management)
 
 
-# Project Workflow Overview  
+## Project Workflow Overview  
 
 The workflow that achieves the project's goal consists of the following steps:  
 
@@ -50,7 +50,7 @@ In **[ops-kubernetes-base](https://github.com/BrutalHex/ops-kubernetes-base)**, 
   - **External-DNS**  
   - **mTLS**
   - **OIDC Authentication**
-  - **Authorization And (Network policies both level 4 and level 7)**
+  - **Authorization and (Network policies, both level 4 and level 7)**
 
 ## 3. Application Packaging & Deployment  
 -  DB(any app) gets deployed as **Helm charts** and gets pushed into a [Helm repository](https://brutalhex.github.io/ops-vectordb/).  
@@ -75,13 +75,56 @@ This setup ensures a fully automated, scalable, and GitOps-driven Kubernetes dep
 - Setup of EKS Autoscaler
 - Secure mTLS setup.
 
+## Architecture diagram
+![Screenshot 2025-05-15 at 11 05 40](https://github.com/user-attachments/assets/8fa36f39-6c65-48b3-a165-47517d51ef34)
+
+## Authentication
+Authentication in the cluster is handled via an OIDC provider using Keycloak, which manages user identities and issues JWT tokens. 
+These tokens are validated through Istio, which is integrated with Keycloak to enforce security policies. 
+Istio uses [AuthorizationPolicy](https://istio.io/latest/docs/reference/config/security/authorization-policy/) to apply fine-grained access control based on identity and claims present in the token, ensuring only authorized users can access specific services.
+Additionally, [PeerAuthentication](https://istio.io/latest/docs/reference/config/security/peer_authentication/) is used to enforce **mutual TLS (mTLS)** within the mesh,
+securing service-to-service communication by verifying the identity of each workload and encrypting the traffic end-to-end.
+<img width="850" alt="Screenshot 2025-05-15 at 11 07 42" src="https://github.com/user-attachments/assets/a626cf65-16b9-4e2c-bc02-5604f99b7ca9" />
+
+Users must obtain the `client ID` and `client secret` from the administrator.
+Based on the current configuration, users must be assigned the `db` role in order to successfully sign in.
+Once the required credentials are obtained, users can retrieve tokens using the following command:
+```bash
+TokenJson=$(curl -vv -k --location --request POST 'https://keycloak.go.walletpan.com/realms/master/protocol/openid-connect/token' \
+  --header 'Content-Type: application/x-www-form-urlencoded' \
+  --data-urlencode 'username=<your username>' \
+  --data-urlencode 'password=<your password>' \
+  --data-urlencode 'grant_type=password' \
+  --data-urlencode 'client_id=<client id>' \
+  --data-urlencode 'client_secret=<client secret>' \
+  --data-urlencode 'scope=openid') && \
+ACCESSTOKEN=$(echo $TokenJson | jq -r '.access_token')
+```
+As a result of the above step, an `access token` is stored in the `ACCESSTOKEN` variable.
+The user can then make requests to the database by including the following `header: Authorization: Bearer $ACCESSTOKEN`. For example:
+```bash
+curl -X POST https://qdb.go.walletpan.com/collections/my-collection/points/search \
+  -H "Authorization: Bearer $ACCESSTOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "vector": [0.1, 0.2, 0.3, 0.4],
+    "top": 5
+  }'
+```
+Here’s what happens behind the scenes to serve your request:
+
+<img width="556" alt="Screenshot 2025-05-15 at 11 09 07" src="https://github.com/user-attachments/assets/995041b3-1fb3-413a-8258-f161d8fc1ddf" />
+
+- The HTTP request reaches the Istio proxy (Envoy sidecar).
+- The access token is verified for authenticity and integrity.
+- The token’s claims are evaluated to confirm the presence of the `db` role.
+- If validation succeeds, access is granted to the requested resource.
 
 
 ## Road Ahead
 The road ahead is defined based on the entire solution design and consists of items that might not be directly related to the project in this repository.  
 
-- Deploy HashiCorp Vault 
-
+- Deploy HashiCorp Vault
 - Deploy Image Updater into EKS  
 - Add branching strategies in Git repositories:  
   - Pull requests  
@@ -90,6 +133,7 @@ The road ahead is defined based on the entire solution design and consists of it
   - sonarQube
   - Dependable bot
   - JFROG Xray
+
 
 # Code Structure
 ```plaintext
