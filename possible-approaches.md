@@ -1,7 +1,7 @@
 # Introduction
 There are several factors to consider when choosing a technology stack that provides a comprehensive DBaaS (Database-as-a-Service) solution.
 For each aspect, multiple options are available. 
-Below, I've highlighted a few key areas along with potential choices for each. This is not an exhaustive list—just a selection of some, relevant topics.
+Below, I've highlighted a few key areas along with potential choices for each. This is not an exhaustive list—just a selection of some relevant topics.
 
 ## Cloud Hypercaler Options
 You can set up your Kubernetes clusters using one of the following approaches:
@@ -46,7 +46,7 @@ Cloudflare provides globally distributed edge protection with built-in DDoS miti
 - Global low-latency protection
 - Strong DDoS mitigation
 - Easy DNS-based integration
-- Managed WAF with rich rulesets
+- Managed WAF with rich rule sets
 - Extra services like Zero Trust access
 
 **Cons:**
