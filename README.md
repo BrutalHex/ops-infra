@@ -50,7 +50,7 @@ In **[ops-kubernetes-base](https://github.com/BrutalHex/ops-kubernetes-base)**, 
   - **External-DNS**  
   - **mTLS**
   - **OIDC Authentication**
-  - **Authorization and (Network policies, both level 4 and level 7)**
+  - **Authorization and Network policies, both level 4 and level 7**
 
 ## 3. Application Packaging & Deployment  
 -  DB(any app) gets deployed as **Helm charts** and gets pushed into a [Helm repository](https://brutalhex.github.io/ops-vectordb/).  
@@ -113,7 +113,8 @@ curl -X POST https://qdb.go.walletpan.com/collections/my-collection/points/searc
 ```
 Here’s what happens behind the scenes to serve your request:
 
-<img width="556" alt="Screenshot 2025-05-15 at 11 09 07" src="https://github.com/user-attachments/assets/995041b3-1fb3-413a-8258-f161d8fc1ddf" />
+<img width="863" alt="Screenshot 2025-05-15 at 13 18 04" src="https://github.com/user-attachments/assets/a1ff0c22-c052-47ef-a89d-a0fca2acea9a" />
+
 
 - The HTTP request reaches the Istio proxy (Envoy sidecar).
 - The access token is verified for authenticity and integrity.
