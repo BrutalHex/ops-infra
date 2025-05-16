@@ -35,6 +35,102 @@ Example: Both clusters are in AWS, but in different regions.
 - Vendor lock-in risks  
 
 ---
+## Security
+
+Securing workload endpoints is critical and requires careful design to prevent unauthorized access while enabling flexibility and scalability. Below are common options:
+
+### Option 1: NGINX-INGRESS + Auth0 + oauth2-proxy
+This setup uses NGINX-INGRESS as a reverse proxy, Auth0 for authentication, and oauth2-proxy to validate JWT tokens against defined RBAC rules.
+
+**Pros:**
+- Lightweight and simple to deploy
+- Cloud-agnostic
+- Fine-grained control over token validation
+
+**Cons:**
+- RBAC enforcement must be implemented manually
+- Requires custom logic or middleware for claims verification
+
+---
+
+### Option 2: Istio + Auth0
+Istio handles authentication and traffic routing, while Auth0 issues JWTs. Istio’s AuthorizationPolicy and RequestAuthentication resources validate and authorize traffic.
+
+**Pros:**
+- Deep integration with Kubernetes
+- Built-in JWT validation and mTLS support
+- Declarative RBAC using Istio’s policies
+
+**Cons:**
+- Steeper learning curve
+- Requires proper configuration of trust domains and issuers
+
+---
+
+### Option 3: Istio + Keycloak + OAuth2 Proxy + Redis
+This is a full-featured solution that supports session management and token-based authentication. Keycloak issues tokens, OAuth2 Proxy handles auth callbacks.
+It's a correct combination to handle the in-browser authentications. 
+
+**Pros:**
+- Full OAuth2 and OIDC compliance
+- Centralized user management (Keycloak)
+- Session caching improves performance
+
+**Cons:**
+- Complex to set up and maintain
+- More moving parts (requires Redis, proxy config, Keycloak setup)
+
+---
+## Workload Deployment Method
+
+The method used to deploy services into infrastructure significantly impacts stability, auditability, and scalability. Below are common approaches:
+
+### Option 1: Manual Helm Deployments
+Manually run `helm install` or `helm upgrade` commands to deploy services.
+
+**Pros:**
+- Simple and flexible
+- Direct control over deployment parameters
+- No need for extra tooling
+
+**Cons:**
+- Prone to human error
+- Lacks audit trail and version control
+- Difficult to automate or scale
+
+---
+
+### Option 2: GitOps using Flux v2
+Flux continuously reconciles the desired state in Git with the cluster using GitOps principles.
+
+**Pros:**
+- Declarative and fully automated
+- Kubernetes-native and CNCF graduated
+- Supports Helm, Kustomize, and plain manifests
+- Strong RBAC and multi-tenancy support
+
+**Cons:**
+- Learning curve for writing `Kustomization` and `HelmRelease` resources
+- No UI (CLI or VSCode extension only) 
+- Workload templating is not supported natively
+
+---
+
+### Option 3: GitOps using ArgoCD and ApplicationSets
+ArgoCD syncs Kubernetes resources from Git and visualizes them via a UI. ApplicationSets enable dynamic multi-cluster/multi-env deployments.
+
+**Pros:**
+- Powerful templating with `ApplicationSets`
+- Visual web UI for sync status and diff viewing
+- Strong community and ecosystem
+- Supports Helm, Kustomize, and raw manifests
+- `ApplicationSets` automate multi-app or multi-env scenarios
+
+**Cons:**
+- Additional resources (e.g., Redis, repo-server) required
+- Slightly heavier operational footprint than Flux
+
+---
 
 ## Firewall and edge security
 One of the most important parts of infrastructure security is the edge firewall and DDoS protection.
